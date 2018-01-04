@@ -2,18 +2,27 @@ import React, { Component } from 'react'
 import { Field, reduxForm } from 'redux-form'
 import { connect } from 'react-redux'
 import _ from 'lodash'
-import { translateWord } from '../../actions'
+import { translateWord, saveTranslation, fetchTranslation, deleteTranslation } from '../../actions'
 import langs from 'google-translate-api/languages'
 
+import WordsList from '../Words_list/Words_list'
+
 export class Form extends Component {
+
   componentDidMount () {
-    console.log(this.props)
+    this.props.fetchTranslation(this.getCurrentLangs())
+  }
+
+  getCurrentLangs () {
+    const langs = this.props.form.translate.value
+    let { from, to } = langs ? langs : {from: 'en', to: 'ru'}
+    return `${from}_${to}`
   }
 
   langsRender () {
     return _.map(langs, function(value, key) {
       if (typeof value !== 'function') {
-        return <option key={key}>{value}</option>
+        return <option value={key} key={key}>{value}</option>
       }
     })
   }
@@ -21,6 +30,18 @@ export class Form extends Component {
   changeHandler (value) {
     let { word, from = 'auto', to = 'en' } = value
     this.props.translateWord(word, from, to)
+  }
+
+  saveHandler () {
+    const {from, to, word} = this.props.form.translate.values
+    const tableName = `${from}_${to}`
+    const translation = this.props.translation.data
+    this.props.saveTranslation(tableName, word, translation)
+  }
+
+  deleteHandler (key) {
+    console.log(key)
+    this.props.deleteTranslation(this.getCurrentLangs(), key)
   }
 
   render () {
@@ -35,7 +56,8 @@ export class Form extends Component {
               <Field
                 name="from"
                 label="From"
-                component="select">
+                component="select"
+              >
                 {this.langsRender()}
               </Field>
               <Field
@@ -49,18 +71,21 @@ export class Form extends Component {
               <Field
                 name="to"
                 label="To"
-                component="select">
+                component="select"
+              >
                 {this.langsRender()}
               </Field>
               <div className="translation_block">{this.props.translation.data}</div>
             </div>
           </div>
           <div className="row">
-            <div className="column">
+            <div className="column text-center">
               <button type="submit">Translate</button>
+              <button type="button" className="push-l-20" onClick={this.saveHandler.bind(this)}>Save translation</button>
             </div>
           </div>
         </form>
+        <WordsList list={this.props.recent} delete={this.deleteHandler.bind(this)} />
       </div>
     )
   }
@@ -68,12 +93,17 @@ export class Form extends Component {
 function mapStateToProps (state) {
   return {
     form: state.form,
-    translation: state.translation
+    translation: state.translation,
+    recent: state.recent
   }
 }
 
 export default reduxForm({
-  form: 'translate' // a unique identifier for this form
+  form: 'translate',  // a unique identifier for this form
+  initialValues: {
+    'from': 'en',
+    'to': 'ru'
+  }
 })(
-  connect(mapStateToProps, { translateWord })(Form)
+  connect(mapStateToProps, { translateWord, saveTranslation, fetchTranslation, deleteTranslation })(Form)
 )
